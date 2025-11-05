@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { generateVirtualTryOn } from '../services/geminiService';
 import { fileToBase64 } from '../utils/fileUtils';
@@ -13,7 +12,7 @@ const statusMessages: Record<VTOStatus, string> = {
     [VTOStatus.IDLE]: '',
     [VTOStatus.UPLOADING]: 'Membaca gambar...',
     [VTOStatus.GENERATING]: 'AI sedang bekerja... Proses ini mungkin memakan waktu beberapa saat.',
-    [VTOStatus.SUCCESS]: 'Berhasil! Lihat hasilnya di bawah.',
+    [VTOStatus.SUCCESS]: 'Berhasil! Unduh hasilnya di bawah.',
     [VTOStatus.ERROR]: 'Maaf, terjadi kesalahan. Silakan coba lagi.'
 };
 
@@ -34,6 +33,8 @@ export const TryOnStudio: React.FC<TryOnStudioProps> = ({ selectedClothing }) =>
       closeCamera();
       setPersonImageFile(file);
       setGeneratedImage(null);
+      setStatus(VTOStatus.IDLE);
+      setError(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPersonImagePreview(reader.result as string);
@@ -73,6 +74,7 @@ export const TryOnStudio: React.FC<TryOnStudioProps> = ({ selectedClothing }) =>
           setPersonImagePreview(null);
           setPersonImageFile(null);
           setGeneratedImage(null);
+          setStatus(VTOStatus.IDLE);
           setIsCameraOpen(true);
           streamRef.current = stream;
           if (videoRef.current) {
@@ -112,6 +114,21 @@ export const TryOnStudio: React.FC<TryOnStudioProps> = ({ selectedClothing }) =>
       }
   };
 
+  const handleDownload = () => {
+    if (!generatedImage || !selectedClothing) return;
+    
+    const link = document.createElement('a');
+    link.href = generatedImage;
+    
+    const clothingName = selectedClothing.name.replace(/\s+/g, '_');
+    const fileExtension = generatedImage.split(';')[0].split('/')[1] || 'png';
+    link.download = `WastraNusa_TryOn_${clothingName}.${fileExtension}`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     if (isCameraOpen && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
@@ -143,7 +160,7 @@ export const TryOnStudio: React.FC<TryOnStudioProps> = ({ selectedClothing }) =>
         </div>
 
         {/* Output Section */}
-        <div className="flex flex-col items-center justify-center border-2 border-dashed border-stone-300 rounded-lg p-6 h-80 bg-white">
+        <div className="flex flex-col items-center justify-center border-2 border-dashed border-stone-300 rounded-lg p-2 h-80 bg-white">
           {status === VTOStatus.GENERATING ? (
             <div className="text-center text-stone-500">
                 <svg className="animate-spin h-10 w-10 text-amber-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -154,7 +171,18 @@ export const TryOnStudio: React.FC<TryOnStudioProps> = ({ selectedClothing }) =>
                 <p className="text-sm mt-2">Ini mungkin memakan waktu sebentar.</p>
             </div>
           ) : generatedImage ? (
-            <img src={generatedImage} alt="Virtual Try-On Result" className="max-h-full max-w-full object-contain rounded-md" />
+            <div className="relative w-full h-full flex flex-col items-center justify-center gap-2">
+                <img src={generatedImage} alt="Virtual Try-On Result" className="max-h-[calc(100%-40px)] w-auto object-contain rounded-md" />
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Unduh Gambar
+                </button>
+            </div>
           ) : (
             <div className="text-center text-stone-500">
                 <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
